@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlc *)",
+      "Bash(go *)",
+      "Bash(rm *)"
+    ]
+  },
+  "$version": 3
+}

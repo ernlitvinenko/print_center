@@ -14,16 +14,46 @@ import (
 )
 
 var authSvc *services.AuthService
+var jwtMiddleware *JWTMiddleware
 
 // InitAuthService инициализирует сервис авторизации (вызывать один раз при старте)
-func InitAuthService(svc *services.AuthService) {
+func InitAuthService(svc *services.AuthService, jwtCfg *services.JWTConfig) {
 	authSvc = svc
+	jwtMiddleware = NewJWTMiddleware(jwtCfg)
+}
+
+// GetJWTMiddleware возвращает middleware для проверки токенов
+func GetJWTMiddleware() echo.MiddlewareFunc {
+	return jwtMiddleware.Handle
 }
 
 func AddHandlers(instance *echo.Echo) error {
 	g := instance.Group("/api/v1/auth")
 	g.POST("/login", Login)
+
+	// Защищённые роуты (требуют токен)
+	protected := g.Group("", GetJWTMiddleware())
+	protected.GET("/me", GetMe)
+
 	return nil
+}
+
+// GetMe возвращает информацию о текущем пользователе
+func GetMe(c *echo.Context) error {
+	userID := c.Get("user_id").(int32)
+	phone := c.Get("phone").(string)
+	firstName := c.Get("first_name").(string)
+	lastName := c.Get("last_name").(string)
+
+	return c.JSON(http.StatusOK, models.LoginResponse{
+		Success: true,
+		User: models.UserInfo{
+			ID:        userID,
+			FirstName: firstName,
+			LastName:  lastName,
+			Phone:     phone,
+		},
+	})
 }
 
 func Login(c *echo.Context) error {
@@ -49,7 +79,7 @@ func Login(c *echo.Context) error {
 	phone := cleanPhoneNumber(*rd.Phone)
 
 	// Аутентификация
-	profile, err := authSvc.Authenticate(context.Background(), phone, *rd.Password)
+	profile, token, err := authSvc.Authenticate(context.Background(), phone, *rd.Password)
 	if err != nil {
 		log.Logger.Warn().Err(err).Str("phone", phone).Msg("Login failed")
 		return c.JSON(http.StatusUnauthorized, models.LoginResponse{
@@ -57,10 +87,6 @@ func Login(c *echo.Context) error {
 			Error:   "Invalid phone number or password",
 		})
 	}
-
-	// TODO: Здесь будет генерация JWT токена
-	// Пока возвращаем пустую строку
-	token := ""
 
 	log.Logger.Info().Str("phone", phone).Int32("user_id", profile.ID).Msg("User logged in successfully")
 

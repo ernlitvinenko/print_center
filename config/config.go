@@ -1,11 +1,10 @@
 package config
 
 import (
-	"context"
 	"fmt"
 	"os"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/joho/godotenv"
 	"github.com/rs/zerolog/log"
 )
 
@@ -27,6 +26,11 @@ type DBConfig struct {
 
 // Load загружает конфигурацию из переменных окружения
 func Load() *Config {
+	// Загружаем .env файл
+	if err := godotenv.Load(); err != nil {
+		log.Debug().Msg(".env file not found, using system environment variables")
+	}
+
 	return &Config{
 		DB: &DBConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -52,36 +56,10 @@ func (c *DBConfig) GetDSN() string {
 	)
 }
 
-// ConnectDB устанавливает подключение к базе данных
-func ConnectDB(cfg *DBConfig) (*pgx.Conn, error) {
-	dsn := cfg.GetDSN()
-
-	log.Info().
-		Str("host", cfg.Host).
-		Str("port", cfg.Port).
-		Str("database", cfg.DBName).
-		Msg("Connecting to database...")
-
-	conn, err := pgx.Connect(context.Background(), dsn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	// Проверяем соединение
-	if err := conn.Ping(context.Background()); err != nil {
-		conn.Close(context.Background())
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
-
-	log.Info().Msg("Successfully connected to database")
-	return conn, nil
-}
-
 // getEnv получает переменную окружения или возвращает значение по умолчанию
 func getEnv(key, defaultValue string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
+	if value := os.Getenv(key); value != "" {
+		return value
 	}
-	return value
+	return defaultValue
 }

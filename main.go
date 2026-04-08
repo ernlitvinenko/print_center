@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 	"github.com/rs/zerolog"
@@ -16,32 +17,50 @@ import (
 )
 
 func main() {
-	// Меняем стандартный логгер на zerolog
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+	// Инициализация логгера
+	initLogger()
 
-	// Загружаем конфигурацию
+	// Загрузка конфигурации
 	cfg := config.Load()
 
-	// Подключаемся к базе данных
+	// Подключение к БД
+	conn := initDatabase(cfg)
+	defer conn.Close(context.Background())
+
+	// Инициализация сервисов
+	queries := repositories.New(conn)
+	jwtConfig := services.NewJWTConfig()
+	authService := services.NewAuthService(queries, jwtConfig)
+	auth.InitAuthService(authService, jwtConfig)
+
+	// Настройка роутера
+	e := initEcho()
+
+	// Регистрация роутов
+	registerRoutes(e)
+
+	// Запуск сервера
+	log.Info().Str("port", cfg.Port).Msg("Starting server...")
+	if err := e.Start(":" + cfg.Port); err != nil {
+		log.Fatal().Err(err).Msg("Failed to start server")
+	}
+}
+
+func initLogger() {
+	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+}
+
+func initDatabase(cfg *config.Config) *pgx.Conn {
 	conn, err := config.ConnectDB(cfg.DB)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to connect to database")
 	}
-	defer conn.Close(context.Background())
+	return conn
+}
 
-	// Инициализируем репозитории
-	queries := repositories.New(conn)
-
-	// Инициализируем сервисы
-	authService := services.NewAuthService(queries)
-
-	// Инициализируем сервис авторизации
-	auth.InitAuthService(authService)
-
-	// Создаем Echo instance
+func initEcho() *echo.Echo {
 	e := echo.New()
 
-	// Middleware
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 
@@ -53,14 +72,11 @@ func main() {
 		})
 	})
 
-	// Регистрируем роуты
+	return e
+}
+
+func registerRoutes(e *echo.Echo) {
 	if err := auth.AddHandlers(e); err != nil {
 		log.Fatal().Err(err).Msg("Failed to add auth handlers")
-	}
-
-	// Запускаем сервер
-	log.Info().Str("port", cfg.Port).Msg("Starting server...")
-	if err := e.Start(":" + cfg.Port); err != nil {
-		log.Fatal().Err(err).Msg("Failed to start server")
 	}
 }
