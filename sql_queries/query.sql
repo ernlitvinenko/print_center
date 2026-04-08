@@ -49,6 +49,9 @@ select * from counterparties where unp = $1;
 -- name: ListAllMaterials :many
 select * from material;
 
+-- name: ListAllNomenclatures :many
+select * from nomenclature;
+
 -- name: ListAllSizes :many
 select * from size;
 

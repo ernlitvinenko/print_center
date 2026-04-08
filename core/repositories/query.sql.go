@@ -248,6 +248,30 @@ func (q *Queries) ListAllMaterials(ctx context.Context) ([]Material, error) {
 	return items, nil
 }
 
+const listAllNomenclatures = `-- name: ListAllNomenclatures :many
+select id, gost_id, image_url from nomenclature
+`
+
+func (q *Queries) ListAllNomenclatures(ctx context.Context) ([]Nomenclature, error) {
+	rows, err := q.db.Query(ctx, listAllNomenclatures)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Nomenclature
+	for rows.Next() {
+		var i Nomenclature
+		if err := rows.Scan(&i.ID, &i.GostID, &i.ImageUrl); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAllOrders = `-- name: ListAllOrders :many
 select id, date_from, date_till, manager_id, counterparties_id, status_id, priority from "order" ord order by ord.date_till asc limit $1 offset $2
 `
