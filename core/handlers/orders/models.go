@@ -5,6 +5,7 @@ package orders
 // ---------------------------------------------------------------------------
 
 // OrderResponse — заказ в ответе API.
+// @Description Заказ в системе
 type OrderResponse struct {
 	ID               int32  `json:"id"`
 	DateFrom         string `json:"date_from"`

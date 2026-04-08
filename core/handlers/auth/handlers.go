@@ -33,6 +33,16 @@ type UserInfo struct {
 }
 
 // loginHandler обрабатывает POST /login.
+// @Summary Авторизация пользователя
+// @Description Вход по номеру телефона и паролю, возвращает JWT токен
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body LoginRequest true "Данные для входа"
+// @Success 200 {object} LoginResponse "Успешный вход"
+// @Failure 400 {object} LoginResponse "Ошибка валидации"
+// @Failure 401 {object} LoginResponse "Неверные учётные данные"
+// @Router /auth/login [post]
 func loginHandler(c *echo.Context) error {
 	req := &LoginRequest{}
 	if err := c.Bind(req); err != nil {
@@ -76,6 +86,14 @@ func loginHandler(c *echo.Context) error {
 }
 
 // getMeHandler возвращает данные текущего пользователя.
+// @Summary Данные текущего пользователя
+// @Description Возвращает информацию о пользователе по JWT токену
+// @Tags auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} LoginResponse "Данные пользователя"
+// @Failure 401 {object} map[string]string "Неавторизован"
+// @Router /auth/me [get]
 func getMeHandler(c *echo.Context) error {
 	userID := c.Get("user_id").(int32)
 	phone := c.Get("phone").(string)

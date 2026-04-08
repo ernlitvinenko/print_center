@@ -1,0 +1,259 @@
+basePath: /api/v1
+definitions:
+  auth.LoginRequest:
+    properties:
+      password:
+        type: string
+      phone:
+        type: string
+    type: object
+  auth.LoginResponse:
+    properties:
+      error:
+        type: string
+      success:
+        type: boolean
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/auth.UserInfo'
+    type: object
+  auth.UserInfo:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: integer
+      last_name:
+        type: string
+      phone:
+        type: string
+    type: object
+  orders.CreateOrderRequest:
+    properties:
+      counterparties_id:
+        type: integer
+      date_till:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/orders.OrderItemRequest'
+        type: array
+      priority:
+        type: integer
+      status_id:
+        type: integer
+    type: object
+  orders.CreateOrderResponse:
+    properties:
+      error:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/orders.OrderItemResponse'
+        type: array
+      order:
+        $ref: '#/definitions/orders.OrderResponse'
+      success:
+        type: boolean
+    type: object
+  orders.OrderItemRequest:
+    properties:
+      material_id:
+        type: integer
+      nomenclature_id:
+        type: integer
+      planning_count:
+        type: integer
+      size_id:
+        type: integer
+      total_count:
+        type: integer
+    type: object
+  orders.OrderItemResponse:
+    properties:
+      id:
+        type: integer
+      material_id:
+        type: integer
+      nomenclature_id:
+        type: integer
+      order_id:
+        type: integer
+      planning_count:
+        type: integer
+      size_id:
+        type: integer
+      total_count:
+        type: integer
+    type: object
+  orders.OrderListResponse:
+    properties:
+      error:
+        type: string
+      orders:
+        items:
+          $ref: '#/definitions/orders.OrderResponse'
+        type: array
+      success:
+        type: boolean
+      total:
+        type: integer
+    type: object
+  orders.OrderResponse:
+    description: Заказ в системе
+    properties:
+      counterparties_id:
+        type: integer
+      date_from:
+        type: string
+      date_till:
+        type: string
+      id:
+        type: integer
+      manager_id:
+        type: integer
+      priority:
+        type: integer
+      status_id:
+        type: integer
+    type: object
+host: localhost:8000
+info:
+  contact: {}
+  description: API для управления заказами печатного центра
+  title: Print Center API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Вход по номеру телефона и паролю, возвращает JWT токен
+      parameters:
+      - description: Данные для входа
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный вход
+          schema:
+            $ref: '#/definitions/auth.LoginResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            $ref: '#/definitions/auth.LoginResponse'
+        "401":
+          description: Неверные учётные данные
+          schema:
+            $ref: '#/definitions/auth.LoginResponse'
+      summary: Авторизация пользователя
+      tags:
+      - auth
+  /auth/me:
+    get:
+      description: Возвращает информацию о пользователе по JWT токену
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Данные пользователя
+          schema:
+            $ref: '#/definitions/auth.LoginResponse'
+        "401":
+          description: Неавторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Данные текущего пользователя
+      tags:
+      - auth
+  /orders:
+    get:
+      description: Возвращает заказы с пагинацией. Администратор видит все заказы
+        + без менеджера.
+      parameters:
+      - default: 20
+        description: Количество записей
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список заказов
+          schema:
+            $ref: '#/definitions/orders.OrderListResponse'
+        "401":
+          description: Неавторизован
+          schema:
+            $ref: '#/definitions/orders.OrderListResponse'
+        "403":
+          description: Доступ запрещён
+          schema:
+            $ref: '#/definitions/orders.OrderListResponse'
+      security:
+      - BearerAuth: []
+      summary: Список заказов
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: Создаёт новый заказ с элементами. Все операции в одной транзакции.
+      parameters:
+      - description: Данные заказа
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/orders.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Заказ создан
+          schema:
+            $ref: '#/definitions/orders.CreateOrderResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            $ref: '#/definitions/orders.CreateOrderResponse'
+        "401":
+          description: Неавторизован
+          schema:
+            $ref: '#/definitions/orders.CreateOrderResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/orders.CreateOrderResponse'
+      security:
+      - BearerAuth: []
+      summary: Создать заказ
+      tags:
+      - orders
+schemes:
+- http
+securityDefinitions:
+  BearerAuth:
+    description: Введите токен в формате "Bearer <token>"
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

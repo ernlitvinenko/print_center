@@ -3,7 +3,8 @@
     "allow": [
       "Bash(sqlc *)",
       "Bash(go *)",
-      "Bash(rm *)"
+      "Bash(rm *)",
+      "Bash(swag *)"
     ]
   },
   "$version": 3

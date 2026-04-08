@@ -21,6 +21,17 @@ func InitStorage(ord storage.OrderStorage, jwt storage.JWTStorage) {
 }
 
 // getOrdersHandler возвращает список заказов с пагинацией.
+// @Summary Список заказов
+// @Description Возвращает заказы с пагинацией. Администратор видит все заказы + без менеджера.
+// @Tags orders
+// @Produce json
+// @Security BearerAuth
+// @Param limit query int false "Количество записей" default(20)
+// @Param offset query int false "Смещение" default(0)
+// @Success 200 {object} OrderListResponse "Список заказов"
+// @Failure 401 {object} OrderListResponse "Неавторизован"
+// @Failure 403 {object} OrderListResponse "Доступ запрещён"
+// @Router /orders [get]
 func getOrdersHandler(c *echo.Context) error {
 	userID, ok := c.Get("user_id").(int32)
 	if !ok {
@@ -50,6 +61,18 @@ func getOrdersHandler(c *echo.Context) error {
 }
 
 // createOrderHandler создаёт заказ с элементами в транзакции.
+// @Summary Создать заказ
+// @Description Создаёт новый заказ с элементами. Все операции в одной транзакции.
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateOrderRequest true "Данные заказа"
+// @Success 201 {object} CreateOrderResponse "Заказ создан"
+// @Failure 400 {object} CreateOrderResponse "Ошибка валидации"
+// @Failure 401 {object} CreateOrderResponse "Неавторизован"
+// @Failure 500 {object} CreateOrderResponse "Ошибка сервера"
+// @Router /orders [post]
 func createOrderHandler(c *echo.Context) error {
 	userID, ok := c.Get("user_id").(int32)
 	if !ok {

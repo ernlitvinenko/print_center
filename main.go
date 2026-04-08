@@ -13,6 +13,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+//	@title			Print Center API
+//	@version		1.0
+//	@description	API для управления заказами печатного центра
+//	@host			localhost:8000
+//	@BasePath		/api/v1
+//	@schemes		http
+
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Введите токен в формате "Bearer <token>"
+
 func main() {
 	app := echo.New()
 
@@ -36,6 +48,9 @@ func main() {
 			"message": "Print Center API is running",
 		})
 	})
+
+	// Swagger UI
+	handlers.RegisterSwagger(app)
 
 	// Startup tasks (init env, db, storage)
 	tasks.OnStartup()
