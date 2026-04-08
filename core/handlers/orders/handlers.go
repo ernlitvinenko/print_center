@@ -145,7 +145,7 @@ func toOrderResponse(o repositories.Order) OrderResponse {
 		ID:               o.ID,
 		DateFrom:         o.DateFrom.Time.Format("2006-01-02T15:04:05Z"),
 		DateTill:         o.DateTill.Time.Format("2006-01-02T15:04:05Z"),
-		ManagerID:        o.ManagerID,
+		ManagerID:        o.ManagerID.Int32,
 		CounterpartiesID: o.CounterpartiesID,
 		StatusID:         o.StatusID,
 		Priority:         o.Priority,

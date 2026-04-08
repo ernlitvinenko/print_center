@@ -20,6 +20,7 @@ type OrderStorage interface {
 // GetOrders возвращает заказы в зависимости от роли пользователя.
 func (s *storage) GetOrders(ctx context.Context, profileID, limit, offset int32) ([]repositories.Order, error) {
 	roles, err := s.queries.GetProfileRoles(ctx, profileID)
+
 	if err != nil {
 		return nil, err
 	}
@@ -40,17 +41,16 @@ func (s *storage) GetOrders(ctx context.Context, profileID, limit, offset int32)
 
 // getOrdersForAdmin — все заказы + без менеджера.
 func (s *storage) getOrdersForAdmin(ctx context.Context, profileID, limit, offset int32) ([]repositories.Order, error) {
-	return s.queries.ListOrdersForAdmin(ctx, repositories.ListOrdersForAdminParams{
-		ManagerID: profileID,
-		Limit:     limit,
-		Offset:    offset,
+	return s.queries.ListAllOrders(ctx, repositories.ListAllOrdersParams{
+		Limit:  limit,
+		Offset: offset,
 	})
 }
 
 // getOrdersForManager — только заказы менеджера.
 func (s *storage) getOrdersForManager(ctx context.Context, managerID, limit, offset int32) ([]repositories.Order, error) {
 	return s.queries.ListAllOrdersToManager(ctx, repositories.ListAllOrdersToManagerParams{
-		ManagerID: managerID,
+		ManagerID: pgtype.Int4{Int32: managerID, Valid: true},
 		Limit:     limit,
 		Offset:    offset,
 	})
@@ -77,7 +77,7 @@ func (s *storage) CreateOrderWithItems(
 	// Создаём заказ
 	order, err := qtx.CreateOrder(ctx, repositories.CreateOrderParams{
 		DateTill:         pgtype.Timestamptz{Time: dateTill, Valid: true},
-		ManagerID:        managerID,
+		ManagerID:        pgtype.Int4{Int32: managerID, Valid: managerID != 0},
 		CounterpartiesID: counterpartiesID,
 		StatusID:         statusID,
 		Priority:         priority,

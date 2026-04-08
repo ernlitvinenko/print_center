@@ -8,7 +8,7 @@ select r.* from role r join profile_role pr on r.id = pr.role_id where pr.profil
 select * from profile;
 
 -- name: ListAllOrders :many
-select * from "order" ord order by ord.date_till asc limit $1 offset $2;
+select * from "order" ord order by ord.date_till asc, ord.priority desc limit $1 offset $2;
 
 -- name: ListAllOrdersToManager :many
 select * from "order" ord where manager_id = $1 order by ord.date_till asc limit $2 offset $3;

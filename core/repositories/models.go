@@ -8,95 +8,158 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// Контрагенты
 type Counterparty struct {
-	ID             int32
-	IsIndividual   bool
-	Unp            pgtype.Int4
-	Name           string
-	Address        pgtype.Text
-	Email          pgtype.Text
+	// Идентификатор контрагента
+	ID int32
+	// Флаг, является ли контрагент физическим лицом
+	IsIndividual bool
+	// УНП - компании
+	Unp pgtype.Int4
+	// Полное наименование организации (юрлицо) / имя контрагента (физлицо)
+	Name string
+	// Адрес организации
+	Address pgtype.Text
+	// Электронная почта контрагента
+	Email pgtype.Text
+	// Контактный номер телефона контрагента
 	PhoneNumberDgt pgtype.Int8
-	ContactName    pgtype.Text
+	// Контактное лицо контрагента
+	ContactName pgtype.Text
 }
 
+// Файлы
 type File struct {
-	ID  int32
+	// Идентификатор файла
+	ID int32
+	// Ссылка на файл
 	Url string
 }
 
+// Материалы производства типографии
 type Material struct {
-	ID   int32
+	// Идентификатор материала
+	ID int32
+	// Наименование материала
 	Name string
 }
 
+// Номенклатура Наклеек
 type Nomenclature struct {
-	ID       int32
-	GostID   pgtype.Text
+	// Идентификатор наклейки
+	ID int32
+	// Номер по ГОСТу (при наличии)
+	GostID pgtype.Text
+	// Изображение
 	ImageUrl string
 }
 
+// Заказы
 type Order struct {
-	ID               int32
-	DateFrom         pgtype.Timestamptz
-	DateTill         pgtype.Timestamptz
-	ManagerID        int32
+	// Идентификатор заказа
+	ID int32
+	// Дата/время создания заказа
+	DateFrom pgtype.Timestamptz
+	// Планируемое время завершения заказа
+	DateTill pgtype.Timestamptz
+	// Ответственный менеджер
+	ManagerID pgtype.Int4
+	// Идентификатор контрагента
 	CounterpartiesID int32
-	StatusID         int16
-	Priority         int16
+	// Идентификатор статуса готовности
+	StatusID int16
+	// Приоритет срочности выполнения заказа от 0 до 3 (0 - стандартный приоритет, 3 - срочный приоритет (HIGH, впереди в очереди))
+	Priority int16
 }
 
+// Коментарии к заказам
 type OrderComment struct {
-	ID        int32
-	OrderID   int32
-	Text      pgtype.Text
+	// Идентификатор комментария
+	ID int32
+	// Идентификатор заказа
+	OrderID int32
+	// Текст комментария
+	Text pgtype.Text
+	// Идентификатор пользователя оставивший коментарий
 	ProfileID int32
 }
 
+// Составляющие заказа
 type OrderItem struct {
-	ID             int32
+	// Идентификатор составляющей
+	ID int32
+	// Идентификатор номенклатуры
 	NomenclatureID int32
-	OrderID        int32
-	SizeID         int32
-	MaterialID     int32
-	PlanningCount  int32
-	TotalCount     int32
+	// Идентификатор заказа
+	OrderID int32
+	// Идентификатор размера
+	SizeID int32
+	// Идентификатор материала
+	MaterialID int32
+	// Количество заказанных деталей
+	PlanningCount int32
+	// Количество произведенных деталей
+	TotalCount int32
 }
 
+// Файлы на наклейки
 type OrderItemsFile struct {
 	ID          int32
 	FileID      int32
 	OrderItemID int32
 }
 
+// Таблица профилей пользователей
 type Profile struct {
-	ID         int32
-	FirstName  string
-	LastName   string
+	// Идентификатор пользователя
+	ID int32
+	// Имя
+	FirstName string
+	// Фамилия
+	LastName string
+	// Отчество (При наличии)
 	FatherName pgtype.Text
-	Email      string
-	PhoneDgt   int64
-	Password   string
+	// эл. почта
+	Email string
+	// Номер телефона (только цифры)
+	PhoneDgt int64
+	// Хешированный пароль пользователя
+	Password string
 }
 
+// Кросс-таблица пользователей и их ролей
 type ProfileRole struct {
-	ID        int32
+	// Идентификатор записи
+	ID int32
+	// Идентификатор профиля пользователя
 	ProfileID int32
-	RoleID    int32
+	// Идентификатор роли
+	RoleID int32
 }
 
+// Таблица ролей пользователей
 type Role struct {
-	ID   int16
+	// Идентификатор роли
+	ID int16
+	// Наименование роли
 	Name string
 }
 
+// Размеры наклеек
 type Size struct {
-	ID     int32
-	Name   string
-	Width  int32
+	ID int32
+	// Наименование размера (напрмер 100x100)
+	Name string
+	// Ширина (мм)
+	Width int32
+	// Высота (мм)
 	Height int32
 }
 
+// Статусы готовности
 type Status struct {
-	ID   int32
+	// Идентификатор статуса
+	ID int32
+	// Наименование статуса
 	Name string
 }

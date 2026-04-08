@@ -85,7 +85,7 @@ returning id, date_from, date_till, manager_id, counterparties_id, status_id, pr
 
 type CreateOrderParams struct {
 	DateTill         pgtype.Timestamptz
-	ManagerID        int32
+	ManagerID        pgtype.Int4
 	CounterpartiesID int32
 	StatusID         int16
 	Priority         int16
@@ -353,7 +353,7 @@ select id, date_from, date_till, manager_id, counterparties_id, status_id, prior
 
 type ListAllOrdersByStatusForManagerParams struct {
 	StatusID  int16
-	ManagerID int32
+	ManagerID pgtype.Int4
 	Limit     int32
 	Offset    int32
 }
@@ -396,7 +396,7 @@ select id, date_from, date_till, manager_id, counterparties_id, status_id, prior
 `
 
 type ListAllOrdersToManagerParams struct {
-	ManagerID int32
+	ManagerID pgtype.Int4
 	Limit     int32
 	Offset    int32
 }
@@ -511,7 +511,7 @@ select id, date_from, date_till, manager_id, counterparties_id, status_id, prior
 `
 
 type ListOrdersForAdminParams struct {
-	ManagerID int32
+	ManagerID pgtype.Int4
 	Limit     int32
 	Offset    int32
 }
