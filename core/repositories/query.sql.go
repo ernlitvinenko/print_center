@@ -7,10 +7,132 @@ package repositories
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getProfile = `-- name: GetProfile :one
+const addItemToOrder = `-- name: AddItemToOrder :one
+insert into order_items (nomenclature_id, order_id, size_id, material_id, planning_count, total_count)
+values ($1, $2, $3, $4, $5, $6)
+returning id, nomenclature_id, order_id, size_id, material_id, planning_count, total_count
+`
 
+type AddItemToOrderParams struct {
+	NomenclatureID int32
+	OrderID        int32
+	SizeID         int32
+	MaterialID     int32
+	PlanningCount  int32
+	TotalCount     int32
+}
+
+func (q *Queries) AddItemToOrder(ctx context.Context, arg AddItemToOrderParams) (OrderItem, error) {
+	row := q.db.QueryRow(ctx, addItemToOrder,
+		arg.NomenclatureID,
+		arg.OrderID,
+		arg.SizeID,
+		arg.MaterialID,
+		arg.PlanningCount,
+		arg.TotalCount,
+	)
+	var i OrderItem
+	err := row.Scan(
+		&i.ID,
+		&i.NomenclatureID,
+		&i.OrderID,
+		&i.SizeID,
+		&i.MaterialID,
+		&i.PlanningCount,
+		&i.TotalCount,
+	)
+	return i, err
+}
+
+const createCounterparties = `-- name: CreateCounterparties :exec
+insert into counterparties (id, is_individual, unp, name, address, email, phone_number_dgt, contact_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+`
+
+type CreateCounterpartiesParams struct {
+	ID             int32
+	IsIndividual   bool
+	Unp            pgtype.Int4
+	Name           string
+	Address        pgtype.Text
+	Email          pgtype.Text
+	PhoneNumberDgt pgtype.Int8
+	ContactName    pgtype.Text
+}
+
+func (q *Queries) CreateCounterparties(ctx context.Context, arg CreateCounterpartiesParams) error {
+	_, err := q.db.Exec(ctx, createCounterparties,
+		arg.ID,
+		arg.IsIndividual,
+		arg.Unp,
+		arg.Name,
+		arg.Address,
+		arg.Email,
+		arg.PhoneNumberDgt,
+		arg.ContactName,
+	)
+	return err
+}
+
+const createOrder = `-- name: CreateOrder :one
+insert into "order" (date_from, date_till, manager_id, counterparties_id, status_id, priority)
+values (NOW(), $1, $2, $3, $4, $5)
+returning id, date_from, date_till, manager_id, counterparties_id, status_id, priority
+`
+
+type CreateOrderParams struct {
+	DateTill         pgtype.Timestamptz
+	ManagerID        int32
+	CounterpartiesID int32
+	StatusID         int16
+	Priority         int16
+}
+
+func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error) {
+	row := q.db.QueryRow(ctx, createOrder,
+		arg.DateTill,
+		arg.ManagerID,
+		arg.CounterpartiesID,
+		arg.StatusID,
+		arg.Priority,
+	)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.DateFrom,
+		&i.DateTill,
+		&i.ManagerID,
+		&i.CounterpartiesID,
+		&i.StatusID,
+		&i.Priority,
+	)
+	return i, err
+}
+
+const getCounterpartiesByUnp = `-- name: GetCounterpartiesByUnp :one
+select id, is_individual, unp, name, address, email, phone_number_dgt, contact_name from counterparties where unp = $1
+`
+
+func (q *Queries) GetCounterpartiesByUnp(ctx context.Context, unp pgtype.Int4) (Counterparty, error) {
+	row := q.db.QueryRow(ctx, getCounterpartiesByUnp, unp)
+	var i Counterparty
+	err := row.Scan(
+		&i.ID,
+		&i.IsIndividual,
+		&i.Unp,
+		&i.Name,
+		&i.Address,
+		&i.Email,
+		&i.PhoneNumberDgt,
+		&i.ContactName,
+	)
+	return i, err
+}
+
+const getProfile = `-- name: GetProfile :one
 select id, first_name, last_name, father_name, email, phone_dgt, password from profile where phone_dgt = $2 or email = $1 limit 1
 `
 
@@ -32,4 +154,424 @@ func (q *Queries) GetProfile(ctx context.Context, arg GetProfileParams) (Profile
 		&i.Password,
 	)
 	return i, err
+}
+
+const getProfileRole = `-- name: GetProfileRole :one
+select role_id from profile_role where profile_id = $1 limit 1
+`
+
+func (q *Queries) GetProfileRole(ctx context.Context, profileID int32) (int32, error) {
+	row := q.db.QueryRow(ctx, getProfileRole, profileID)
+	var role_id int32
+	err := row.Scan(&role_id)
+	return role_id, err
+}
+
+const getProfileRoles = `-- name: GetProfileRoles :many
+select r.id, r.name from role r join profile_role pr on r.id = pr.role_id where pr.profile_id = $1
+`
+
+func (q *Queries) GetProfileRoles(ctx context.Context, profileID int32) ([]Role, error) {
+	rows, err := q.db.Query(ctx, getProfileRoles, profileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Role
+	for rows.Next() {
+		var i Role
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllCounterparties = `-- name: ListAllCounterparties :many
+select id, is_individual, unp, name, address, email, phone_number_dgt, contact_name from counterparties
+`
+
+func (q *Queries) ListAllCounterparties(ctx context.Context) ([]Counterparty, error) {
+	rows, err := q.db.Query(ctx, listAllCounterparties)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Counterparty
+	for rows.Next() {
+		var i Counterparty
+		if err := rows.Scan(
+			&i.ID,
+			&i.IsIndividual,
+			&i.Unp,
+			&i.Name,
+			&i.Address,
+			&i.Email,
+			&i.PhoneNumberDgt,
+			&i.ContactName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllMaterials = `-- name: ListAllMaterials :many
+select id, name from material
+`
+
+func (q *Queries) ListAllMaterials(ctx context.Context) ([]Material, error) {
+	rows, err := q.db.Query(ctx, listAllMaterials)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Material
+	for rows.Next() {
+		var i Material
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllNomenclatures = `-- name: ListAllNomenclatures :many
+select id, gost_id, image_url from nomenclature
+`
+
+func (q *Queries) ListAllNomenclatures(ctx context.Context) ([]Nomenclature, error) {
+	rows, err := q.db.Query(ctx, listAllNomenclatures)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Nomenclature
+	for rows.Next() {
+		var i Nomenclature
+		if err := rows.Scan(&i.ID, &i.GostID, &i.ImageUrl); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllOrders = `-- name: ListAllOrders :many
+select id, date_from, date_till, manager_id, counterparties_id, status_id, priority from "order" ord order by ord.date_till asc limit $1 offset $2
+`
+
+type ListAllOrdersParams struct {
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) ListAllOrders(ctx context.Context, arg ListAllOrdersParams) ([]Order, error) {
+	rows, err := q.db.Query(ctx, listAllOrders, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.DateFrom,
+			&i.DateTill,
+			&i.ManagerID,
+			&i.CounterpartiesID,
+			&i.StatusID,
+			&i.Priority,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllOrdersByStatus = `-- name: ListAllOrdersByStatus :many
+select id, date_from, date_till, manager_id, counterparties_id, status_id, priority from "order" ord where status_id = $1 order by ord.date_till asc limit $2 offset $3
+`
+
+type ListAllOrdersByStatusParams struct {
+	StatusID int16
+	Limit    int32
+	Offset   int32
+}
+
+func (q *Queries) ListAllOrdersByStatus(ctx context.Context, arg ListAllOrdersByStatusParams) ([]Order, error) {
+	rows, err := q.db.Query(ctx, listAllOrdersByStatus, arg.StatusID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.DateFrom,
+			&i.DateTill,
+			&i.ManagerID,
+			&i.CounterpartiesID,
+			&i.StatusID,
+			&i.Priority,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllOrdersByStatusForManager = `-- name: ListAllOrdersByStatusForManager :many
+select id, date_from, date_till, manager_id, counterparties_id, status_id, priority from "order" ord where status_id = $1 and ord.manager_id = $2 order by ord.date_till asc limit $3 offset $4
+`
+
+type ListAllOrdersByStatusForManagerParams struct {
+	StatusID  int16
+	ManagerID int32
+	Limit     int32
+	Offset    int32
+}
+
+func (q *Queries) ListAllOrdersByStatusForManager(ctx context.Context, arg ListAllOrdersByStatusForManagerParams) ([]Order, error) {
+	rows, err := q.db.Query(ctx, listAllOrdersByStatusForManager,
+		arg.StatusID,
+		arg.ManagerID,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.DateFrom,
+			&i.DateTill,
+			&i.ManagerID,
+			&i.CounterpartiesID,
+			&i.StatusID,
+			&i.Priority,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllOrdersToManager = `-- name: ListAllOrdersToManager :many
+select id, date_from, date_till, manager_id, counterparties_id, status_id, priority from "order" ord where manager_id = $1 order by ord.date_till asc limit $2 offset $3
+`
+
+type ListAllOrdersToManagerParams struct {
+	ManagerID int32
+	Limit     int32
+	Offset    int32
+}
+
+func (q *Queries) ListAllOrdersToManager(ctx context.Context, arg ListAllOrdersToManagerParams) ([]Order, error) {
+	rows, err := q.db.Query(ctx, listAllOrdersToManager, arg.ManagerID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.DateFrom,
+			&i.DateTill,
+			&i.ManagerID,
+			&i.CounterpartiesID,
+			&i.StatusID,
+			&i.Priority,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllRoles = `-- name: ListAllRoles :many
+select id, name from role
+`
+
+func (q *Queries) ListAllRoles(ctx context.Context) ([]Role, error) {
+	rows, err := q.db.Query(ctx, listAllRoles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Role
+	for rows.Next() {
+		var i Role
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllSizes = `-- name: ListAllSizes :many
+select id, name, width, height from size
+`
+
+func (q *Queries) ListAllSizes(ctx context.Context) ([]Size, error) {
+	rows, err := q.db.Query(ctx, listAllSizes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Size
+	for rows.Next() {
+		var i Size
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Width,
+			&i.Height,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllStatuses = `-- name: ListAllStatuses :many
+select id, name from status
+`
+
+func (q *Queries) ListAllStatuses(ctx context.Context) ([]Status, error) {
+	rows, err := q.db.Query(ctx, listAllStatuses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Status
+	for rows.Next() {
+		var i Status
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOrdersForAdmin = `-- name: ListOrdersForAdmin :many
+select id, date_from, date_till, manager_id, counterparties_id, status_id, priority from "order" ord where manager_id IS NULL OR manager_id = $1 order by ord.date_till asc limit $2 offset $3
+`
+
+type ListOrdersForAdminParams struct {
+	ManagerID int32
+	Limit     int32
+	Offset    int32
+}
+
+func (q *Queries) ListOrdersForAdmin(ctx context.Context, arg ListOrdersForAdminParams) ([]Order, error) {
+	rows, err := q.db.Query(ctx, listOrdersForAdmin, arg.ManagerID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.DateFrom,
+			&i.DateTill,
+			&i.ManagerID,
+			&i.CounterpartiesID,
+			&i.StatusID,
+			&i.Priority,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProfiles = `-- name: ListProfiles :many
+select id, first_name, last_name, father_name, email, phone_dgt, password from profile
+`
+
+func (q *Queries) ListProfiles(ctx context.Context) ([]Profile, error) {
+	rows, err := q.db.Query(ctx, listProfiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Profile
+	for rows.Next() {
+		var i Profile
+		if err := rows.Scan(
+			&i.ID,
+			&i.FirstName,
+			&i.LastName,
+			&i.FatherName,
+			&i.Email,
+			&i.PhoneDgt,
+			&i.Password,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
