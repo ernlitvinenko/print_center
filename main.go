@@ -2,7 +2,8 @@ package main
 
 import (
 	"backend/config"
-	"backend/core/api/v1/auth"
+	v1auth "backend/core/api/v1/auth"
+	v1order "backend/core/api/v1/order"
 	"backend/core/repositories"
 	"backend/core/services"
 	"context"
@@ -31,7 +32,10 @@ func main() {
 	queries := repositories.New(conn)
 	jwtConfig := services.NewJWTConfig()
 	authService := services.NewAuthService(queries, jwtConfig)
-	auth.InitAuthService(authService, jwtConfig)
+	orderService := services.NewOrderService(queries, conn)
+
+	v1auth.InitAuthService(authService, jwtConfig)
+	v1order.InitOrderService(orderService)
 
 	// Настройка роутера
 	e := initEcho()
@@ -64,6 +68,13 @@ func initEcho() *echo.Echo {
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 
+	// CORS middleware
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"http://localhost:3000", "http://localhost:3001"},
+		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders: []string{"Authorization", "Content-Type", "Accept", "Origin"},
+	}))
+
 	// Health check
 	e.GET("/", func(c *echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]interface{}{
@@ -76,7 +87,13 @@ func initEcho() *echo.Echo {
 }
 
 func registerRoutes(e *echo.Echo) {
-	if err := auth.AddHandlers(e); err != nil {
+	// Auth routes (публичные + защищённые)
+	if err := v1auth.AddHandlers(e); err != nil {
 		log.Fatal().Err(err).Msg("Failed to add auth handlers")
+	}
+
+	// Order routes (защищённые)
+	if err := v1order.AddHandlers(e, v1auth.GetJWTMiddleware()); err != nil {
+		log.Fatal().Err(err).Msg("Failed to add order handlers")
 	}
 }
