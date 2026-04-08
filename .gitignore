@@ -1,0 +1,38 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# Build output
+backend
+*.exe
+*.test
+*.out
+/vendor/
+
+# Go
+go.work
+go.work.sum
+
+# OS
+.DS_Store
+Thumbs.db
+._*
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
